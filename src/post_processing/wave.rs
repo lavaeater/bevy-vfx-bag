@@ -1,28 +1,20 @@
-use bevy::render::RenderSet;
-pub(crate) use bevy::{
+use bevy::{
     asset::load_internal_asset,
     ecs::query::QueryItem,
     prelude::*,
-    reflect::TypeUuid,
     render::{
-        extract_component::{
-            ComponentUniforms, ExtractComponent, ExtractComponentPlugin, UniformComponentPlugin,
-        },
-        render_phase::{AddRenderCommand, DrawFunctions, RenderPhase},
+        extract_component::ExtractComponent,
         render_resource::{
-            BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry,
-            BindingType, BufferBindingType, CachedRenderPipelineId, ShaderStages, ShaderType,
+            binding_types::uniform_buffer, BindGroupLayoutEntries, ShaderStages, ShaderType,
         },
-        renderer::RenderDevice,
+        sync_component::SyncComponent,
     },
+    shader::Shader,
 };
 
-use crate::post_processing::UniformBindGroup;
+use super::EffectPipeline;
 
-use super::{DrawPostProcessingEffect, Order, PostProcessingPhaseItem};
-
-const WAVE_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 1792660281364049744);
+const WAVE_SHADER_HANDLE: Handle<Shader> = crate::util::weak_from_u64(1792660281364049744);
 
 /// Wave parameters.
 ///
@@ -52,34 +44,14 @@ pub struct Wave {
     pub amplitude_y: f32,
 }
 
-#[derive(Resource)]
-pub(crate) struct WaveData {
-    pub pipeline_id: CachedRenderPipelineId,
-    pub uniform_layout: BindGroupLayout,
-}
-
-impl FromWorld for WaveData {
+impl FromWorld for EffectPipeline<Wave> {
     fn from_world(world: &mut World) -> Self {
-        let (uniform_layout, pipeline_id) = super::create_layout_and_pipeline(
+        EffectPipeline::new(
             world,
             "Wave",
-            &[BindGroupLayoutEntry {
-                binding: 0,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: true,
-                    min_binding_size: Some(Wave::min_size()),
-                },
-                visibility: ShaderStages::FRAGMENT,
-                count: None,
-            }],
-            WAVE_SHADER_HANDLE.typed(),
-        );
-
-        WaveData {
-            pipeline_id,
-            uniform_layout,
-        }
+            &BindGroupLayoutEntries::single(ShaderStages::FRAGMENT, uniform_buffer::<Wave>(true)),
+            WAVE_SHADER_HANDLE,
+        )
     }
 }
 
@@ -93,72 +65,22 @@ impl bevy::prelude::Plugin for Plugin {
             Shader::from_wgsl
         );
 
-        // This puts the uniform into the render world.
-        app.add_plugin(ExtractComponentPlugin::<Wave>::default())
-            .add_plugin(UniformComponentPlugin::<Wave>::default());
-
-        super::render_app(app)
-            .add_system(
-                super::extract_post_processing_camera_phases::<Wave>.in_schedule(ExtractSchedule),
-            )
-            .init_resource::<WaveData>()
-            .init_resource::<UniformBindGroup<Wave>>()
-            .add_system(prepare.in_set(RenderSet::Prepare))
-            .add_system(queue.in_set(RenderSet::Queue))
-            .add_render_command::<PostProcessingPhaseItem, DrawPostProcessingEffect<Wave>>();
+        super::add_uniform_effect::<Wave, Wave>(app);
     }
 }
 
-fn prepare(
-    data: Res<WaveData>,
-    mut views: Query<(
-        Entity,
-        &mut RenderPhase<PostProcessingPhaseItem>,
-        &Order<Wave>,
-    )>,
-    draw_functions: Res<DrawFunctions<PostProcessingPhaseItem>>,
-) {
-    for (entity, mut phase, order) in views.iter_mut() {
-        let draw_function = draw_functions.read().id::<DrawPostProcessingEffect<Wave>>();
-
-        phase.add(PostProcessingPhaseItem {
-            entity,
-            sort_key: (*order).into(),
-            draw_function,
-            pipeline_id: data.pipeline_id,
-        });
-    }
-}
-
-fn queue(
-    render_device: Res<RenderDevice>,
-    data: Res<WaveData>,
-    mut bind_group: ResMut<UniformBindGroup<Wave>>,
-    uniforms: Res<ComponentUniforms<Wave>>,
-    views: Query<Entity, With<Wave>>,
-) {
-    bind_group.inner = None;
-
-    if let Some(uniforms) = uniforms.binding() {
-        if !views.is_empty() {
-            bind_group.inner = Some(render_device.create_bind_group(&BindGroupDescriptor {
-                label: Some("Wave Uniform Bind Group"),
-                layout: &data.uniform_layout,
-                entries: &[BindGroupEntry {
-                    binding: 0,
-                    resource: uniforms.clone(),
-                }],
-            }));
-        }
-    }
+impl SyncComponent for Wave {
+    type Target = Self;
 }
 
 impl ExtractComponent for Wave {
-    type Query = (&'static Self, &'static Camera);
-    type Filter = ();
+    type QueryData = (&'static Self, &'static Camera);
+    type QueryFilter = ();
     type Out = Self;
 
-    fn extract_component((settings, camera): QueryItem<'_, Self::Query>) -> Option<Self::Out> {
+    fn extract_component(
+        (settings, camera): QueryItem<'_, '_, Self::QueryData>,
+    ) -> Option<Self::Out> {
         if !camera.is_active {
             return None;
         }

@@ -7,11 +7,11 @@ use bevy_vfx_bag::{post_processing::wave::Wave, BevyVfxBagPlugin};
 fn main() {
     let mut app = App::new();
 
-    app.add_plugin(examples_common::SaneDefaultsPlugin)
-        .add_plugin(examples_common::ShapesExamplePlugin::without_3d_camera())
-        .add_plugin(BevyVfxBagPlugin::default())
-        .add_startup_system(startup)
-        .add_system(update)
+    app.add_plugins(examples_common::SaneDefaultsPlugin)
+        .add_plugins(examples_common::ShapesExamplePlugin::without_3d_camera())
+        .add_plugins(BevyVfxBagPlugin)
+        .add_systems(Startup, startup)
+        .add_systems(Update, update)
         .run();
 }
 
@@ -19,19 +19,18 @@ fn startup(mut commands: Commands) {
     info!("Press [1|2|3|4|5] to change which wave preset to use.");
 
     commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_xyz(0.0, 6., 12.0)
-                .looking_at(Vec3::new(0., 1., 0.), Vec3::Y),
-            ..default()
-        },
+        Camera3d::default(),
+        Transform::from_xyz(0.0, 6., 12.0).looking_at(Vec3::new(0., 1., 0.), Vec3::Y),
         Wave::default(),
     ));
 }
 
-fn update(mut query: Query<&mut Wave, With<Camera>>, keyboard_input: Res<Input<KeyCode>>) {
-    let mut wave = query.single_mut();
+fn update(mut query: Query<&mut Wave, With<Camera>>, keyboard_input: Res<ButtonInput<KeyCode>>) {
+    let Ok(mut wave) = query.single_mut() else {
+        return;
+    };
 
-    if keyboard_input.just_pressed(KeyCode::Key1) {
+    if keyboard_input.just_pressed(KeyCode::Digit1) {
         info!("We're rowing on land.");
         *wave = Wave {
             waves_x: 1.,
@@ -41,7 +40,7 @@ fn update(mut query: Query<&mut Wave, With<Camera>>, keyboard_input: Res<Input<K
             amplitude_x: 0.25,
             amplitude_y: 0.005,
         };
-    } else if keyboard_input.just_pressed(KeyCode::Key2) {
+    } else if keyboard_input.just_pressed(KeyCode::Digit2) {
         info!("We're being lazy in the x direction.");
         *wave = Wave {
             waves_x: 1.,
@@ -49,7 +48,7 @@ fn update(mut query: Query<&mut Wave, With<Camera>>, keyboard_input: Res<Input<K
             amplitude_x: 0.1,
             ..default()
         };
-    } else if keyboard_input.just_pressed(KeyCode::Key3) {
+    } else if keyboard_input.just_pressed(KeyCode::Digit3) {
         info!("Now we're fighting the wind!");
         *wave = Wave {
             waves_y: 10.,
@@ -57,7 +56,7 @@ fn update(mut query: Query<&mut Wave, With<Camera>>, keyboard_input: Res<Input<K
             amplitude_y: 0.002,
             ..default()
         };
-    } else if keyboard_input.just_pressed(KeyCode::Key4) {
+    } else if keyboard_input.just_pressed(KeyCode::Digit4) {
         info!("These are some rough seas...");
         *wave = Wave {
             waves_x: 1.,
@@ -67,7 +66,7 @@ fn update(mut query: Query<&mut Wave, With<Camera>>, keyboard_input: Res<Input<K
             amplitude_x: 0.03,
             amplitude_y: 0.04,
         };
-    } else if keyboard_input.just_pressed(KeyCode::Key5) {
+    } else if keyboard_input.just_pressed(KeyCode::Digit5) {
         info!("Oh no, earthquake!");
         *wave = Wave {
             waves_x: 2.0,

@@ -13,6 +13,7 @@ exclude = [".github/", "scripts/"]
 
 [features]
 
+# No-ops, kept for compatibility: pipelines now follow each camera's target format.
 default = ["sdr"]
 
 hdr = []
@@ -23,6 +24,7 @@ bevy = { version = "0.19.1", default-features = false, features = [
     "bevy_asset",
     "bevy_render",
     "bevy_core_pipeline",
+    "bevy_log",
     "png",
     "tga",
 ] }

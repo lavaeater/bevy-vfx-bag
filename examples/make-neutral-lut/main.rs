@@ -4,7 +4,7 @@
 //! except for rounding errors introduced due to the size of this
 //! LUT being finite.
 use color_eyre::Result;
-use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
+use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 
 const BLOCK_SIZE: u32 = 64;
 const NUM_BLOCKS: u32 = 64;
@@ -58,7 +58,7 @@ fn main() -> Result<()> {
 
     let lut = make_lut();
 
-    encoder.write_image(&lut, WIDTH, HEIGHT, ColorType::Rgb8)?;
+    encoder.write_image(&lut, WIDTH, HEIGHT, ExtendedColorType::Rgb8)?;
 
     println!("File `lut.png` was created! Edit the colors of this file and load it as a LUT. See the LUT example.");
 

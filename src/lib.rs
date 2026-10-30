@@ -1,3 +1,4 @@
+#![recursion_limit = "256"] // Deeply nested render types (e.g. `BindGroup`) exceed the default when checking `Sync`.
 #![allow(clippy::too_many_arguments)] // Bevy fns tend to have many args.
 #![deny(clippy::unwrap_used)] // Let's try to explain invariants when we unwrap (so use expect).
 #![deny(missing_docs)] // Let's try to have good habits.
